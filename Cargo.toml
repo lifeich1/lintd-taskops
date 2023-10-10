@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "lintd-taskops",
+  "xtask",
+]
+resolver = "2"
