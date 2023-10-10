@@ -19,7 +19,7 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         neo: bool,
     },
-    /// Regular ci tests: fmt, clippy, build
+    /// Regular ci tests: fmt, clippy, test
     Ci,
     /// Run cargo docs in watch mode
     Docs,
