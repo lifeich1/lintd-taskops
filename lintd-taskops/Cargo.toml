@@ -2,8 +2,15 @@
 name = "lintd-taskops"
 version = "0.1.0"
 edition = "2021"
+authors = ["lifeich1 <lifeich0@gmail.com>"]
+description = "My shared xtask operations"
+categories = ["development-tools"]
+keywords = ["xtask"]
+license = "Apache-2.0"
+readme = "../README.md"
+documentation = "https://docs.rs/lintd-taskops"
+repository = "https://github.com/lifeich1/lintd-taskops"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.75"
