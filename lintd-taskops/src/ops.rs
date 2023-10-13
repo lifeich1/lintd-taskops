@@ -1,7 +1,13 @@
-use anyhow::Context;
-use anyhow::Result;
+use anyhow::{anyhow, bail, Context, Result};
 use duct::cmd;
+use serde_derive::Deserialize;
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+};
+use toml::Table;
 use xtaskops::ops::clean_files;
+
 /// # Errors
 /// print short hint to stderr and bail.
 pub fn neo_coverage() -> Result<()> {
@@ -44,5 +50,127 @@ fn do_neo_coverage() -> Result<()> {
     )
     .run()?;
     clean_files("**/*.profraw")?;
+    Ok(())
+}
+
+/// # Errors
+/// print short hint to stderr and bail.
+pub fn bump_version(bump: &str) -> Result<()> {
+    check_wd_clean()?;
+    println!("=== bump version ===");
+    cmd!("cargo", "set-version", "--exclude", "xtask", "--bump", bump).run()?;
+    let pkg = default_members()?
+        .pop()
+        .ok_or_else(|| anyhow!("bad default-members"))?;
+    let ver = package_version(&pkg)?;
+    cmd!(
+        "git",
+        "commit",
+        "--all",
+        "--message",
+        format!(":bookmark: bump to v{ver}")
+    )
+    .run()
+    .context("failed commit bumped version")?;
+    Ok(())
+}
+
+fn read_toml(path: &str) -> Result<Table> {
+    let f = File::open(path)?;
+    let mut buf_rd = BufReader::new(f);
+    let mut buf = String::new();
+    buf_rd.read_to_string(&mut buf)?;
+    Ok(Table::try_from(buf)?)
+}
+
+#[derive(Deserialize)]
+struct WorkspaceMeta {
+    workspace: Workspace,
+}
+
+#[derive(Deserialize)]
+struct Workspace {
+    default_members: Option<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+struct PackageMeta {
+    package: Package,
+}
+#[derive(Deserialize)]
+struct Package {
+    name: String,
+    version: String,
+}
+
+fn package_version(package: &str) -> Result<String> {
+    let meta: PackageMeta = read_toml(&format!("./{package}/Cargo.toml"))?.try_into()?;
+    assert_eq!(meta.package.name, package);
+    Ok(meta.package.version)
+}
+
+fn default_members() -> Result<Vec<String>> {
+    let ws: WorkspaceMeta = read_toml("./Cargo.toml")?.try_into()?;
+    match ws.workspace.default_members {
+        Some(v) if !v.is_empty() => Ok(v),
+        _ => bail!("cannot find default member"),
+    }
+}
+
+fn check_wd_clean() -> Result<()> {
+    let status = cmd!("git", "status", "-s").read().context("git status")?;
+    if !status.is_empty() {
+        bail!("{status}\nWorking directory dirty !!");
+    }
+    Ok(())
+}
+
+fn check_main_branch() -> Result<()> {
+    let branch = cmd!("git", "branch", "--show-current").read()?;
+    if matches!(branch.as_ref(), "master" | "main") {
+        Ok(())
+    } else {
+        bail!("branch `{branch}` is not main branch")
+    }
+}
+
+fn push_verbose() -> Result<()> {
+    cmd!("git", "push", "--verbose")
+        .run()
+        .context("failed git push")?;
+    Ok(())
+}
+
+/// # Errors
+/// print short hint to stderr and bail.
+pub fn publish() -> Result<()> {
+    check_wd_clean()?;
+    check_main_branch()?;
+    push_verbose()?;
+    let pkgs = &default_members()?;
+    println!("=== dry run check all ===");
+    for pkg in pkgs {
+        cmd!("cargo", "publish", "-p", pkg, "--dry-run").run()?;
+    }
+    println!("=== do publish ===");
+    for pkg in pkgs {
+        cmd!("cargo", "publish", "-p", pkg).run()?;
+    }
+    println!("=== github release ===");
+    let ver = package_version(&pkgs[0])?;
+    cmd!(
+        "gh",
+        "release",
+        "create",
+        format!("v{ver}"),
+        "--generate-notes"
+    )
+    .run()?;
+    cmd!("git", "fetch", "--tags")
+        .run()
+        .context("failed git-fetch")?;
+    println!("=== bump patch version ===");
+    bump_version("patch")?;
+    push_verbose()?;
     Ok(())
 }

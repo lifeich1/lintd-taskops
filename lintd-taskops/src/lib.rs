@@ -23,6 +23,14 @@ enum Commands {
     Ci,
     /// Run cargo docs in watch mode
     Docs,
+    /// Bump version and commit
+    Bump {
+        /// increment version part
+        #[arg(default_value = "patch")]
+        bump: String,
+    },
+    /// Publish and bump version auto commit
+    Publish,
 }
 
 pub mod ops;
@@ -38,5 +46,7 @@ pub fn make() -> Result<()> {
         Commands::Docs => xtaskops::tasks::docs(),
         Commands::Coverage { dev, neo: false } => xtaskops::tasks::coverage(*dev),
         Commands::Coverage { neo: true, .. } => ops::neo_coverage(),
+        Commands::Bump { bump } => ops::bump_version(bump),
+        Commands::Publish => ops::publish(),
     }
 }
