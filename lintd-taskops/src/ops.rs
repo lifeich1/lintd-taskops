@@ -158,12 +158,21 @@ pub fn publish() -> Result<()> {
     println!("=== dry run check all ===");
     for pkg in pkgs {
         println!("=== checking {pkg} ===");
-        cmd!("cargo", "publish", "-p", pkg, "--dry-run").run()?;
+        cmd!(
+            "cargo",
+            "publish",
+            "--registry",
+            "crates-io",
+            "-p",
+            pkg,
+            "--dry-run"
+        )
+        .run()?;
     }
     println!("=== do publish ===");
     for pkg in pkgs {
         println!("=== publishing {pkg} ===");
-        cmd!("cargo", "publish", "-p", pkg).run()?;
+        cmd!("cargo", "publish", "--registry", "crates-io", "-p", pkg).run()?;
     }
     println!("=== github release ===");
     let ver = package_version(&pkgs[0])?;
