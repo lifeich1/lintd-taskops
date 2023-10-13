@@ -62,6 +62,7 @@ pub fn bump_version(bump: &str) -> Result<()> {
     let pkg = default_members()?
         .pop()
         .ok_or_else(|| anyhow!("bad default-members"))?;
+    println!("pkg: {}", &pkg);
     let ver = package_version(&pkg)?;
     cmd!(
         "git",
@@ -76,11 +77,11 @@ pub fn bump_version(bump: &str) -> Result<()> {
 }
 
 fn read_toml(path: &str) -> Result<Table> {
-    let f = File::open(path)?;
+    let f = File::open(path).context("open file")?;
     let mut buf_rd = BufReader::new(f);
     let mut buf = String::new();
-    buf_rd.read_to_string(&mut buf)?;
-    Ok(Table::try_from(buf)?)
+    buf_rd.read_to_string(&mut buf).context("read_to_string")?;
+    buf.parse().context("try into Table")
 }
 
 #[derive(Deserialize)]
@@ -90,7 +91,7 @@ struct WorkspaceMeta {
 
 #[derive(Deserialize)]
 struct Workspace {
-    default_members: Option<Vec<String>>,
+    members: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -104,17 +105,23 @@ struct Package {
 }
 
 fn package_version(package: &str) -> Result<String> {
-    let meta: PackageMeta = read_toml(&format!("./{package}/Cargo.toml"))?.try_into()?;
+    let meta: PackageMeta = read_toml(&format!("./{package}/Cargo.toml"))?
+        .try_into()
+        .context("try into PackageMeta")?;
     assert_eq!(meta.package.name, package);
     Ok(meta.package.version)
 }
 
 fn default_members() -> Result<Vec<String>> {
-    let ws: WorkspaceMeta = read_toml("./Cargo.toml")?.try_into()?;
-    match ws.workspace.default_members {
-        Some(v) if !v.is_empty() => Ok(v),
-        _ => bail!("cannot find default member"),
-    }
+    let ws: WorkspaceMeta = read_toml("./Cargo.toml")?
+        .try_into()
+        .context("try into WorkspaceMeta")?;
+    Ok(ws
+        .workspace
+        .members
+        .into_iter()
+        .filter(|x| x != "xtask")
+        .collect())
 }
 
 fn check_wd_clean() -> Result<()> {
@@ -150,10 +157,12 @@ pub fn publish() -> Result<()> {
     let pkgs = &default_members()?;
     println!("=== dry run check all ===");
     for pkg in pkgs {
+        println!("=== checking {pkg} ===");
         cmd!("cargo", "publish", "-p", pkg, "--dry-run").run()?;
     }
     println!("=== do publish ===");
     for pkg in pkgs {
+        println!("=== publishing {pkg} ===");
         cmd!("cargo", "publish", "-p", pkg).run()?;
     }
     println!("=== github release ===");

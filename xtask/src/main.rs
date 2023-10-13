@@ -1,4 +1,8 @@
 use anyhow::Result;
 fn main() -> Result<()> {
-    lintd_taskops::make()
+    let r = lintd_taskops::make();
+    if let Err(e) = &r {
+        println!("Detail: {e:?}");
+    }
+    r
 }
