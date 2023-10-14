@@ -8,6 +8,35 @@ use std::{
 use toml::Table;
 use xtaskops::ops::clean_files;
 
+pub trait Recipe {
+    /// Like make recipe, drop all outputs.
+    ///
+    /// # Errors
+    /// Return error if recipe failed.
+    fn go(&self) -> Result<()>;
+
+    /// Recipe helper, attach cmd debug repr at failing status.
+    ///
+    /// # Errors
+    /// Return error if expression failed.
+    fn eval(&self) -> Result<String>;
+}
+
+impl Recipe for duct::Expression {
+    fn go(&self) -> Result<()> {
+        let txt = format!("{self:?}");
+        println!("-- {txt}");
+        self.run()
+            .with_context(|| format!("recipe: {txt}"))
+            .map(|_| ())
+    }
+
+    fn eval(&self) -> Result<String> {
+        let txt = format!("{self:?}");
+        self.read().with_context(|| format!("eval: {txt}"))
+    }
+}
+
 /// # Errors
 /// print short hint to stderr and bail.
 pub fn neo_coverage() -> Result<()> {
@@ -24,8 +53,7 @@ fn do_neo_coverage() -> Result<()> {
         .env("LLVM_PROFILE_FILE", "cargo-test-%p-%m.profraw")
         .stderr_to_stdout()
         .stdout_capture()
-        .run()
-        .context("Failed cargo test")?;
+        .go()?;
     cmd!(
         "grcov",
         ".",
@@ -48,7 +76,7 @@ fn do_neo_coverage() -> Result<()> {
         "--token",
         "NO_TOKEN",
     )
-    .run()?;
+    .go()?;
     clean_files("**/*.profraw")?;
     Ok(())
 }
@@ -58,7 +86,7 @@ fn do_neo_coverage() -> Result<()> {
 pub fn bump_version(bump: &str) -> Result<()> {
     check_wd_clean()?;
     println!("=== bump version ===");
-    cmd!("cargo", "set-version", "--exclude", "xtask", "--bump", bump).run()?;
+    cmd!("cargo", "set-version", "--exclude", "xtask", "--bump", bump).go()?;
     let pkg = default_members()?
         .pop()
         .ok_or_else(|| anyhow!("bad default-members"))?;
@@ -71,8 +99,7 @@ pub fn bump_version(bump: &str) -> Result<()> {
         "--message",
         format!(":bookmark: bump to v{ver}")
     )
-    .run()
-    .context("failed commit bumped version")?;
+    .go()?;
     Ok(())
 }
 
@@ -125,7 +152,7 @@ fn default_members() -> Result<Vec<String>> {
 }
 
 fn check_wd_clean() -> Result<()> {
-    let status = cmd!("git", "status", "-s").read().context("git status")?;
+    let status = cmd!("git", "status", "-s").eval()?;
     if !status.is_empty() {
         bail!("{status}\nWorking directory dirty !!");
     }
@@ -133,7 +160,7 @@ fn check_wd_clean() -> Result<()> {
 }
 
 fn check_main_branch() -> Result<()> {
-    let branch = cmd!("git", "branch", "--show-current").read()?;
+    let branch = cmd!("git", "branch", "--show-current").eval()?;
     if matches!(branch.as_ref(), "master" | "main") {
         Ok(())
     } else {
@@ -142,9 +169,7 @@ fn check_main_branch() -> Result<()> {
 }
 
 fn push_verbose() -> Result<()> {
-    cmd!("git", "push", "--verbose")
-        .run()
-        .context("failed git push")?;
+    cmd!("git", "push", "--verbose").go()?;
     Ok(())
 }
 
@@ -167,12 +192,12 @@ pub fn publish() -> Result<()> {
             pkg,
             "--dry-run"
         )
-        .run()?;
+        .go()?;
     }
     println!("=== do publish ===");
     for pkg in pkgs {
         println!("=== publishing {pkg} ===");
-        cmd!("cargo", "publish", "--registry", "crates-io", "-p", pkg).run()?;
+        cmd!("cargo", "publish", "--registry", "crates-io", "-p", pkg).go()?;
     }
     println!("=== github release ===");
     let ver = package_version(&pkgs[0])?;
@@ -183,10 +208,8 @@ pub fn publish() -> Result<()> {
         format!("v{ver}"),
         "--generate-notes"
     )
-    .run()?;
-    cmd!("git", "fetch", "--tags")
-        .run()
-        .context("failed git-fetch")?;
+    .go()?;
+    cmd!("git", "fetch", "--tags").go()?;
     println!("=== bump patch version ===");
     bump_version("patch")?;
     push_verbose()?;
