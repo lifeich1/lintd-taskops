@@ -26,9 +26,8 @@ impl Recipe for duct::Expression {
     fn go(&self) -> Result<()> {
         let txt = format!("{self:?}");
         println!("-- {txt}");
-        self.run()
-            .with_context(|| format!("recipe: {txt}"))
-            .map(|_| ())
+        self.run()?;
+        Ok(())
     }
 
     fn eval(&self) -> Result<String> {
