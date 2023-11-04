@@ -31,22 +31,67 @@ enum Commands {
     },
     /// Publish and bump version auto commit
     Publish,
+    /// Holder for per-project distribution receipt
+    Dist,
+    /// General addon targets
+    Rule {
+        #[arg(default_value = "default")]
+        target: String,
+        rule_options: Vec<String>,
+    },
 }
 
 pub mod ops;
+
+pub trait Addon {
+    /// Command dist
+    /// # Errors
+    /// User throw errors.
+    fn dist() -> Result<()> {
+        println!("Warning: Empty dist receipt.");
+        Ok(())
+    }
+    /// Command rule
+    /// # Errors
+    /// User throw errors.
+    fn rule(target: String, options: Vec<String>) -> Result<()> {
+        println!("Warning: Empty receipt for target {target}, options: {options:?}");
+        Ok(())
+    }
+}
+
+pub trait Make: Addon {
+    /// Main entrypoint.
+    ///
+    /// # Errors
+    /// error if tasks failed.
+    fn make() -> Result<()> {
+        let cli = Cli::parse();
+        match &cli.command {
+            Commands::Ci => xtaskops::tasks::ci(),
+            Commands::Docs => xtaskops::tasks::docs(),
+            Commands::Coverage { dev, neo: false } => xtaskops::tasks::coverage(*dev),
+            Commands::Coverage { neo: true, .. } => ops::neo_coverage(),
+            Commands::Bump { bump } => ops::bump_version(bump),
+            Commands::Publish => ops::publish(),
+            Commands::Dist => Self::dist(),
+            Commands::Rule {
+                target,
+                rule_options,
+            } => Self::rule(target.clone(), rule_options.clone()),
+        }
+    }
+}
+
+impl<T> Make for T where T: Addon {}
+
+struct MakeImpl();
+impl Addon for MakeImpl {}
 
 /// Main entrypoint.
 ///
 /// # Errors
 /// error if tasks failed.
 pub fn make() -> Result<()> {
-    let cli = Cli::parse();
-    match &cli.command {
-        Commands::Ci => xtaskops::tasks::ci(),
-        Commands::Docs => xtaskops::tasks::docs(),
-        Commands::Coverage { dev, neo: false } => xtaskops::tasks::coverage(*dev),
-        Commands::Coverage { neo: true, .. } => ops::neo_coverage(),
-        Commands::Bump { bump } => ops::bump_version(bump),
-        Commands::Publish => ops::publish(),
-    }
+    MakeImpl::make()
 }

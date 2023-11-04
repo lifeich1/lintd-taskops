@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.75"
 lintd-taskops = { path = "../lintd-taskops" }
+duct = "0.13.6"
