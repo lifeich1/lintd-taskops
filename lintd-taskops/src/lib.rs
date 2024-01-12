@@ -85,13 +85,13 @@ pub trait Make: Addon {
 
 impl<T> Make for T where T: Addon {}
 
-struct MakeImpl();
-impl Addon for MakeImpl {}
+struct MiniMaker();
+impl Addon for MiniMaker {}
 
 /// Main entrypoint.
 ///
 /// # Errors
 /// error if tasks failed.
 pub fn make() -> Result<()> {
-    MakeImpl::make()
+    MiniMaker::make()
 }
