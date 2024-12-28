@@ -1,6 +1,6 @@
 [package]
 name = "lintd-taskops"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = ["lifeich1 <lifeich0@gmail.com>"]
 description = "My shared xtask operations"
