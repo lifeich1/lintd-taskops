@@ -39,9 +39,8 @@ impl Recipe for duct::Expression {
 /// # Errors
 /// print short hint to stderr and bail.
 pub fn neo_coverage() -> Result<()> {
-    do_neo_coverage().map_err(|e| {
-        eprintln!("{:#}", &e);
-        e
+    do_neo_coverage().inspect_err(|e| {
+        eprintln!("{e:#}");
     })
 }
 
