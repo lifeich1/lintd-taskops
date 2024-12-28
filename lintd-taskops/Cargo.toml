@@ -13,11 +13,11 @@ repository = "https://github.com/lifeich1/lintd-taskops"
 
 
 [dependencies]
-anyhow = "1.0.75"
-clap = { version = "4.4.6", features = ["derive"] }
+anyhow = "1.0.95"
+clap = { version = "4.5.23", features = ["derive"] }
 derive_builder = "0.12.0"
-duct = "0.13.6"
-serde = "1.0.189"
-serde_derive = "1.0.189"
-toml = "0.8.2"
+duct = "0.13.7"
+serde = "1.0.217"
+serde_derive = "1.0.217"
+toml = "0.8.19"
 xtaskops =  { version = "0.4.2", features = [] }
