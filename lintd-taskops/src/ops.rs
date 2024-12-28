@@ -91,6 +91,13 @@ pub fn bump_version(bump: &str) -> Result<()> {
         .ok_or_else(|| anyhow!("bad default-members"))?;
     println!("pkg: {}", &pkg);
     let ver = package_version(&pkg)?;
+    if cmd!("nix", "eval", ".#packages")
+        .stderr_to_stdout()
+        .read()
+        .is_ok()
+    {
+        cmd!("nix-update", "default", "--flake", "--version", &ver).go()?;
+    }
     cmd!(
         "git",
         "commit",
